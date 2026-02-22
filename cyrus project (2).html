@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HIGH SCHOOL & COLLEGE ESSENTIALS E-COMMERCE</title>
+    <style>
+        body { margin:0; font-family:'Segoe UI', sans-serif; background:linear-gradient(to right,#eef2f3,#dbe9f4);}
+        header { background:#0b3d91; color:white; padding:15px 30px; display:flex; justify-content:space-between; align-items:center;}
+        nav a { margin-left:15px; cursor:pointer; color:white; font-weight:500;}
+        nav a:hover { text-decoration:underline;}
+        #content { padding:40px; min-height:70vh;}
+        .card { background:white; padding:20px; margin:15px 0; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.1);}
+        .card img { display:block; margin-bottom:10px; border-radius:8px;}
+        button { background:#0b3d91; color:white; padding:8px 15px; border:none; border-radius:5px; cursor:pointer;}
+        button:hover { background:#062c6b;}
+        input, select, textarea { padding:8px; width:100%; margin-bottom:10px; border-radius:5px; border:1px solid #ccc;}
+        footer { background:#0b3d91; color:white; text-align:center; padding:10px;}
+    </style>
+</head>
+<body>
+
+<header>
+    <h2>HIGH SCHOOL & COLLEGE ESSENTIALS E-COMMERCE</h2>
+    <nav>
+        <a id="navHome" onclick="navigate('home')" style="display:none;">Home</a>
+        <a id="navProducts" onclick="navigate('products')" style="display:none;">Products</a>
+        <a id="navCart" onclick="navigate('cart')" style="display:none;">Cart</a>
+        <a id="navOrders" onclick="navigate('orders')" style="display:none;">Orders</a>
+        <a id="loginLink" onclick="navigate('login')">Login</a>
+        <a id="registerLink" onclick="navigate('register')">Register</a>
+        <a id="logoutLink" onclick="logout()" style="display:none;">Logout</a>
+    </nav>
+</header>
+
+<section id="content"></section>
+
+<footer>© 2026 EduSupply Hub | School Essentials</footer>
+
+<script>
+/* ===== DATA ===== */
+let products = [
+    {id:1,name:"Grade 11 Complete Kit",category:"Grade-Level Kit",price:1500,stock:10,description:"Complete supplies package for Grade 11", image:"https://via.placeholder.com/150?text=Grade+11+Kit"},
+    {id:2,name:"School Uniform Set",category:"Uniforms",price:800,stock:15,description:"Complete uniform set", image:"https://via.placeholder.com/150?text=Uniform+Set"},
+    {id:3,name:"Notebook Bundle",category:"Supplies",price:250,stock:50,description:"5 notebooks bundle", image:"https://via.placeholder.com/150?text=Notebook+Bundle"},
+    {id:4,name:"Science Textbook",category:"Books",price:600,stock:20,description:"Senior High Science Book", image:"https://via.placeholder.com/150?text=Science+Book"}
+];
+
+if(!localStorage.getItem("users")) localStorage.setItem("users", JSON.stringify([{ email: "admin@edusupply.com", password: "admin123", role:"admin" }]));
+if(!localStorage.getItem("cart")) localStorage.setItem("cart", JSON.stringify([]));
+if(!localStorage.getItem("orders")) localStorage.setItem("orders", JSON.stringify([]));
+if(!localStorage.getItem("feedbacks")) localStorage.setItem("feedbacks", JSON.stringify([]));
+
+let currentUser = null;
+
+/* ===== NAVIGATION ===== */
+function updateNav(){
+    if(currentUser){
+        document.getElementById("loginLink").style.display="none";
+        document.getElementById("registerLink").style.display="none";
+        document.getElementById("logoutLink").style.display="inline";
+        document.getElementById("navHome").style.display=currentUser.role==="admin"?"none":"inline";
+        document.getElementById("navProducts").style.display=currentUser.role==="admin"?"none":"inline";
+        document.getElementById("navCart").style.display=currentUser.role==="admin"?"none":"inline";
+        document.getElementById("navOrders").style.display=currentUser.role==="admin"?"none":"inline";
+    } else {
+        document.getElementById("loginLink").style.display="inline";
+        document.getElementById("registerLink").style.display="inline";
+        document.getElementById("logoutLink").style.display="none";
+        document.getElementById("navHome").style.display="none";
+        document.getElementById("navProducts").style.display="none";
+        document.getElementById("navCart").style.display="none";
+        document.getElementById("navOrders").style.display="none";
+    }
+}
+
+/* ===== NAVIGATE FUNCTION ===== */
+function navigate(page){
+    updateNav();
+    let content = document.getElementById("content");
+
+    /* ===== USER PAGES ===== */
+    if(page==="home"){
+        content.innerHTML = `<h1>Welcome to EduSupply Hub</h1>
+        <p>Your one-stop shop for school essentials.</p>
+        <h3>Featured Products</h3>
+        ${products.slice(0,2).map(p=>`<div class="card">
+            <img src="${p.image}" alt="${p.name}" style="width:150px;height:150px;object-fit:cover;">
+            <b>${p.name}</b><br>₱${p.price}<br>${p.description}</div>`).join("")}`;
+    }
+
+    if(page==="products"){
+        content.innerHTML = "<h2>Product Listing</h2>"+products.map(p=>`
+        <div class="card">
+            <img src="${p.image}" alt="${p.name}" style="width:150px;height:150px;object-fit:cover;">
+            <h3>${p.name}</h3>
+            Category: ${p.category}<br>
+            ₱${p.price} | Stock: ${p.stock}<br>
+            ${p.description}<br>
+            Quantity: <input type="number" id="qty${p.id}" value="1" min="1" max="${p.stock}" style="width:60px"><br><br>
+            <button onclick="addToCart(${p.id})" ${p.stock===0?'disabled':''}>Add to Cart</button>
+        </div>`).join("")+`<button onclick="navigate('home')">Back to Home</button>`;
+    }
+
+    if(page==="cart"){
+        let cart = JSON.parse(localStorage.getItem("cart"));
+        if(cart.length===0){ 
+            content.innerHTML="<h2>Cart is empty</h2>"; 
+            return; 
+        }
+        let html = "<h2>Shopping Cart</h2>"; 
+        let total=0;
+        cart.forEach(item=>{
+            let product = products.find(p=>p.id===item.id);
+            html+=`<div class="card">
+                <img src="${product.image}" style="width:80px;height:80px;object-fit:cover;">
+                ${product.name} - ₱${product.price} x 
+                <input type="number" value="${item.qty}" min="1" max="${product.stock}" style="width:60px" onchange="updateCartQty(${item.id}, this.value)">
+                = ₱${product.price*item.qty}<br>
+                <button onclick="removeFromCart(${item.id})">Remove Item</button>
+            </div>`;
+            total += product.price * item.qty;
+        });
+        html+=`<h3>Total: ₱${total}</h3>
+        <h4>Delivery Info</h4>
+        <input id="address" placeholder="Block/Lot/Street/City">
+        <input id="contact" placeholder="Contact Number">
+        <select id="payment"><option>GCash</option><option>PayPal</option><option>Cash on Delivery</option></select>
+        <br><br>
+        <button onclick="checkout()">Checkout</button>
+        <br><br>
+        <button onclick="navigate('products')">Back to Products</button>`;
+        content.innerHTML=html;
+    }
+
+    if(page==="orders"){
+        let orders = JSON.parse(localStorage.getItem("orders"));
+        let html = "<h2>Order History</h2>";
+        orders.forEach((o,index)=>{
+            if(o.user!==currentUser.email) return;
+            html += `<div class="card">
+                <b>Products:</b><br>${o.cart.map(i=>{
+                    let p = products.find(pr=>pr.id===i.id);
+                    return `<img src="${p.image}" style="width:80px;height:80px;object-fit:cover;"> ${p.name} x ${i.qty}`;
+                }).join("<br>")}<br>
+                <b>Total:</b> ₱${o.total}<br>
+                <b>Payment:</b> ${o.payment}<br>
+                <b>Address:</b> ${o.address}<br>
+                <b>Contact:</b> ${o.contact}<br>
+                <b>Status:</b> ${o.status}<br>`;
+            if(o.status==="Delivered" && !o.feedbackGiven){
+                html+=`<button onclick="giveFeedback(${index})">Give Feedback</button>`;
+            }
+            if(o.status!=="Delivered" && o.status!=="Cancelled"){
+                html+=`<button onclick="cancelOrder(${index})">Cancel Order</button>`;
+            }
+            html+="</div>";
+        });
+        html+=`<br><button onclick="navigate('home')">Back to Home</button>`;
+        content.innerHTML = html;
+    }
+
+    if(page==="register"){
+        content.innerHTML=`<h2>Register</h2>
+        <input id="regEmail" placeholder="Email">
+        <input id="regPass" type="password" placeholder="Password">
+        <button onclick="register()">Register</button>`;
+    }
+
+    if(page==="login"){
+        content.innerHTML=`<h2>Login</h2>
+        <input id="logEmail" placeholder="Email">
+        <input id="logPass" type="password" placeholder="Password">
+        <button onclick="login()">Login</button>`;
+    }
+
+    /* ===== ADMIN PAGES ===== */
+    if(page==="admin"){
+        content.innerHTML = `<h2>Admin Dashboard</h2>
+        <button onclick="navigate('manageProducts')">Manage Products</button>
+        <button onclick="navigate('manageOrders')">Manage Orders</button>
+        <br><br><button onclick="logout()">Logout</button>`;
+    }
+
+    if(page==="manageProducts"){
+        content.innerHTML = "<h2>Products Management</h2>" + products.map(p => `
+            <div class="card">
+                <img src="${p.image}" style="width:100px;height:100px;object-fit:cover;">
+                <b>${p.name}</b> (${p.category})<br>
+                Price: ₱${p.price} | Stock: ${p.stock}<br>
+                ${p.description}<br>
+                <button onclick="editProduct(${p.id})">Edit</button>
+                <button onclick="deleteProduct(${p.id})">Delete</button>
+            </div>`).join("") +
+            `<h3>Add New Product</h3>
+            <input id="newName" placeholder="Product Name">
+            <input id="newCategory" placeholder="Category">
+            <input id="newPrice" type="number" placeholder="Price">
+            <input id="newStock" type="number" placeholder="Stock Quantity">
+            <input id="newImage" placeholder="Image URL">
+            <textarea id="newDesc" placeholder="Description"></textarea>
+            <button onclick="addProduct()">Add Product</button>
+            <br><br><button onclick="navigate('admin')">Back to Dashboard</button>`;
+    }
+
+    if(page==="manageOrders"){
+        let orders = JSON.parse(localStorage.getItem("orders"));
+        content.innerHTML = "<h2>All Orders</h2>" + orders.map((o,index) => `
+            <div class="card">
+                <b>User:</b> ${o.user}<br>
+                <b>Products:</b><br>${o.cart.map(i=>{ let p=products.find(pr=>pr.id===i.id); return `<img src="${p.image}" style="width:80px;height:80px;object-fit:cover;"> ${p.name} x ${i.qty}`}).join("<br>")}<br>
+                <b>Total:</b> ₱${o.total}<br>
+                <b>Payment:</b> ${o.payment}<br>
+                <b>Address:</b> ${o.address}<br>
+                <b>Contact:</b> ${o.contact}<br>
+                <b>Status:</b> ${o.status}<br>
+                <button onclick="updateOrderStatus(${index})">Update Status</button>
+            </div>`).join("") + `<br><button onclick="navigate('admin')">Back to Dashboard</button>`;
+    }
+}
+
+/* ===== USER FUNCTIONS ===== */
+function register(){
+    let email = regEmail.value.trim();
+    let pass = regPass.value;
+    let users = JSON.parse(localStorage.getItem("users"));
+    if(users.find(u=>u.email===email)){ alert("Email already exists!"); return;}
+    users.push({email,password:pass,role:"user"});
+    localStorage.setItem("users",JSON.stringify(users));
+    alert("Registered Successfully!"); navigate("login");
+}
+
+function login(){
+    let email=logEmail.value.trim();
+    let pass=logPass.value;
+    let users = JSON.parse(localStorage.getItem("users"));
+    let user=users.find(u=>u.email===email && u.password===pass);
+    if(user){currentUser=user; alert("Login Successful!");
+        if(user.role==="admin"){navigate("admin");} else {navigate("home");}
+    } else alert("Invalid Login");
+}
+
+function logout(){
+    currentUser=null;
+    alert("Logged out!");
+    navigate("login");
+}
+
+function addToCart(id){
+    let qty = parseInt(document.getElementById("qty"+id).value);
+    let product = products.find(p=>p.id===id);
+    if(qty<=0){ alert("Quantity must be at least 1"); return;}
+    if(qty > product.stock){ alert(`Only ${product.stock} items available`); return; }
+
+    let cart = JSON.parse(localStorage.getItem("cart"));
+    let item = cart.find(i=>i.id===id);
+    if(item){
+        if(item.qty+qty > product.stock){ alert(`Cannot exceed stock (${product.stock})`); return;}
+        item.qty+=qty;
+    } else cart.push({id,qty});
+    localStorage.setItem("cart",JSON.stringify(cart));
+    navigate("cart");
+}
+
+function updateCartQty(id, qty){
+    qty = parseInt(qty);
+    let cart = JSON.parse(localStorage.getItem("cart"));
+    let product = products.find(p => p.id === id);
+    if(qty > product.stock) qty = product.stock;
+    if(qty < 1) qty = 1;
+    let item = cart.find(i => i.id === id);
+    if(item) item.qty = qty;
+    localStorage.setItem("cart", JSON.stringify(cart));
+    navigate("cart");
+}
+
+function removeFromCart(id){
+    let cart = JSON.parse(localStorage.getItem("cart"));
+    cart = cart.filter(item => item.id !== id);
+    localStorage.setItem("cart", JSON.stringify(cart));
+    navigate("cart");
+}
+
+function checkout(){
+    let cart = JSON.parse(localStorage.getItem("cart"));
+    if(cart.length===0){ alert("Cart is empty!"); return; }
+
+    let address = document.getElementById("address").value.trim();
+    let contact = document.getElementById("contact").value.trim();
+    if(!address || !contact){ alert("Please fill delivery info"); return; }
+
+    let payment = document.getElementById("payment").value;
+
+    for(let i=0;i<cart.length;i++){
+        let product = products.find(p=>p.id===cart[i].id);
+        if(cart[i].qty > product.stock){
+            alert(`Not enough stock for ${product.name}. Available: ${product.stock}`);
+            return;
+        }
+    }
+
+    let total=0;
+    let purchasedItems=[];
+    cart.forEach(i=>{
+        let product = products.find(p=>p.id===i.id);
+        product.stock -= i.qty;
+        total += product.price*i.qty;
+        purchasedItems.push({id: product.id, qty: i.qty});
+    });
+
+    let orders = JSON.parse(localStorage.getItem("orders"));
+    orders.push({user: currentUser.email, total, cart: purchasedItems, address, contact, payment, status: "Processing", feedbackGiven: false});
+    localStorage.setItem("orders", JSON.stringify(orders));
+    localStorage.setItem("cart", JSON.stringify([]));
+    alert("Order placed! Delivery in 10 seconds.");
+
+    let orderIndex = orders.length - 1;
+    setTimeout(()=>{
+        let updatedOrders = JSON.parse(localStorage.getItem("orders"));
+        let order = updatedOrders[orderIndex];
+        if(order.status!=="Cancelled"){
+            updatedOrders[orderIndex].status="Delivered";
+            localStorage.setItem("orders", JSON.stringify(updatedOrders));
+            alert("Order delivered! Please provide feedback.");
+            navigate("orders");
+        }
+    },10000);
+
+    navigate("orders");
+}
+
+function giveFeedback(index){
+    let feedbacks = JSON.parse(localStorage.getItem("feedbacks"));
+    let feedback = prompt("Please enter feedback for your order:");
+    if(feedback){
+        feedbacks.push({user:currentUser.email,order:index,feedback});
+        let orders=JSON.parse(localStorage.getItem("orders"));
+        orders[index].feedbackGiven=true;
+        localStorage.setItem("orders",JSON.stringify(orders));
+        localStorage.setItem("feedbacks",JSON.stringify(feedbacks));
+        alert("Thanks for your feedback!");
+        navigate("orders");
+    }
+}
+
+function cancelOrder(index){
+    let orders = JSON.parse(localStorage.getItem("orders"));
+    if(confirm("Are you sure you want to cancel this order?")){
+        let order = orders[index];
+        order.cart.forEach(i=>{
+            let product = products.find(p=>p.id===i.id);
+            if(product) product.stock += i.qty;
+        });
+        orders[index].status = "Cancelled";
+        localStorage.setItem("orders",JSON.stringify(orders));
+        navigate("orders");
+    }
+}
+
+/* ===== ADMIN FUNCTIONS ===== */
+function addProduct(){
+    let name = document.getElementById("newName").value.trim();
+    let cat = document.getElementById("newCategory").value.trim();
+    let price = parseFloat(document.getElementById("newPrice").value);
+    let stock = parseInt(document.getElementById("newStock").value);
+    let image = document.getElementById("newImage").value.trim();
+    let desc = document.getElementById("newDesc").value.trim();
+    if(!name || !cat || !price || !stock){ alert("Fill all fields"); return;}
+    let id = products.length>0?Math.max(...products.map(p=>p.id))+1:1;
+    products.push({id,name,category:cat,price,stock,description:desc,image});
+    navigate("manageProducts");
+}
+
+function editProduct(id){
+    let product = products.find(p=>p.id===id);
+    let newName = prompt("Name:", product.name);
+    if(newName) product.name = newName;
+    let newCat = prompt("Category:", product.category);
+    if(newCat) product.category = newCat;
+    let newPrice = prompt("Price:", product.price);
+    if(newPrice) product.price = parseFloat(newPrice);
+    let newStock = prompt("Stock:", product.stock);
+    if(newStock) product.stock = parseInt(newStock);
+    let newDesc = prompt("Description:", product.description);
+    if(newDesc) product.description = newDesc;
+    let newImage = prompt("Image URL:", product.image);
+    if(newImage) product.image = newImage;
+    navigate("manageProducts");
+}
+
+function deleteProduct(id){
+    if(confirm("Are you sure you want to delete this product?")){
+        products = products.filter(p => p.id!==id);
+        navigate("manageProducts");
+    }
+}
+
+function updateOrderStatus(index){
+    let orders = JSON.parse(localStorage.getItem("orders"));
+    let status = prompt("Enter new status (Processing/Delivered):", orders[index].status);
+    if(status) { orders[index].status = status; localStorage.setItem("orders",JSON.stringify(orders)); navigate("manageOrders"); }
+}
+
+/* ===== INITIAL LOAD ===== */
+navigate("login");
+</script>
+
+</body>
+</html>
